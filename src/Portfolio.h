@@ -70,7 +70,6 @@ public:
     for(std::string stock : get_keys(current_investments)) {
         try {
             result += current_investments[stock] * Coordinator::get_price_at(stock, current_date).value().get_open();
-            std::cout << "\n i got " << current_investments[stock] << " stocks of type " << stock << " at price " << Coordinator::get_price_at(stock, current_date).value().get_open() << std::endl;
         } catch(const boost::bad_optional_access& ex) {
             std::cout << "Error during get networth execution! Date " << current_date.year() << ", " << current_date.month() << ", " << current_date.day() << " does not exist for stock " << stock << std::endl;
         }

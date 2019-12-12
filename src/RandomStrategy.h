@@ -16,7 +16,11 @@ private:
     const double buy_probability = 0.1;
     boost::variate_generator< RNGType, boost::uniform_real<> > random;
 public:
-    RandomStrategy(long double money, RNGType rng, boost::uniform_real<> zero_to_one) : Strategy(money), random(rng, zero_to_one) {}
+    RandomStrategy(long double money, RNGType rng, boost::uniform_real<> zero_to_one) : Strategy(money, "Random Strategy"), random(rng, zero_to_one) {}
+
+    std::string getName() override {
+      return "Random Strategy";
+    }
 
     std::vector<StockOrder> rebalance(boost::gregorian::date cur_date) override {
         std::vector<StockOrder> result;
@@ -38,8 +42,10 @@ public:
                 }
             }
         }
-        for(auto el : result) {
+        if (false) { // TODO: replace with global flag
+          for(auto el : result) {
             std::cout << el.to_string() << std::endl;
+          }
         }
         p.remove_empty_stocks();
         return result;

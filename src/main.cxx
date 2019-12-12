@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cmath>
 #include <boost/program_options.hpp>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMainWindow>
@@ -7,6 +8,7 @@
 #include "app.h"
 #include "Coordinator.h"
 #include "RandomStrategy.h"
+#include "BuyAndHoldRandomStrategy.h"
 
 #include <QtCharts>
 
@@ -52,16 +54,12 @@ int main(int argc, char *argv[]) {
 }
 */
 
-int start(int argc, char **argv) {
+int test_trading_strategy(int argc, char **argv, Strategy &cur_strat, int investment_money) {
   std::string RESOURCES_PATH = "/home/jan/StockAnalyzer/resources/";
-  long double investment_money = 1000;
-  std::cout << "Starting with " << investment_money << " money." << std::endl;
   Coordinator::read_stock_data(RESOURCES_PATH);
-  RNGType rng;
-  boost::uniform_real<> zero_to_one(0, 1);
-
-  RandomStrategy r(investment_money, rng, zero_to_one);
-  Strategy *cur_strat = &r;
+  for (const std::string& stocks : Coordinator::get_all_stocks()) {
+    std::cout << stocks << std::endl;
+  }
 
   std::string first_date_string("19500103");
   boost::gregorian::date first_date(boost::gregorian::from_undelimited_string(first_date_string));
@@ -71,24 +69,25 @@ int start(int argc, char **argv) {
 
   std::cout << "Started on " << boost::gregorian::to_simple_string(first_date);
   auto *series = new QLineSeries();
+  series->setName(QString::fromStdString(cur_strat.getName()));
+  auto *dax_series = new QLineSeries();
+  dax_series->setName("DAX Series");
+  auto *sp_series = new QLineSeries();
+  sp_series->setName("S&P 500 Series");
+  auto *inflation_series2 = new QLineSeries();
+  inflation_series2->setName("Inflation @ 2%");
+  auto *inflation_series3 = new QLineSeries();
+  inflation_series3->setName("Inflation @ 3%");
   int i = 0;
   while (current_date <= last_date) {
-    cur_strat->rebalance(current_date);
-    series->append(i, cur_strat->get_current_networth(current_date));
-
-    do {
-      boost::gregorian::days next_day(1);
-      current_date = current_date + next_day;
-      i++;
-    } while (!Coordinator::date_valid(current_date) && current_date <= last_date);
-  }
-  auto *dax_series = new QLineSeries();
-  auto *sp_series = new QLineSeries();
-  current_date = (boost::gregorian::from_undelimited_string(first_date_string));
-  i = 0;
-  while (current_date <= last_date) {
-    dax_series->append(i, 1000 / 16 * Coordinator::get_price_at("/home/jan/StockAnalyzer/resources/DAX_30_historical_data_fake.csv", current_date).value().get_open());
-    sp_series->append(i, 1000 / 16 * Coordinator::get_price_at("/home/jan/StockAnalyzer/resources/SnP500_historical_data.csv", current_date).value().get_open());
+    cur_strat.rebalance(current_date);
+    series->append(i, cur_strat.get_current_networth(current_date));
+    dax_series->append(i, 1000 / 16 * Coordinator::get_price_at("DAX_30_historical_data_fake.csv", current_date).value().get_open());
+    sp_series->append(i, 1000 / 16 * Coordinator::get_price_at("SnP500_historical_data.csv", current_date).value().get_open());
+    boost::gregorian::date_duration passed_duration = current_date - first_date;
+    float exponent = passed_duration.days() / 365.0f;
+    inflation_series2->append(i, investment_money * std::pow(1.02, exponent));
+    inflation_series3->append(i, investment_money * std::pow(1.03, exponent));
 
     do {
       boost::gregorian::days next_day(1);
@@ -97,16 +96,17 @@ int start(int argc, char **argv) {
     } while (!Coordinator::date_valid(current_date) && current_date <= last_date);
   }
 
-
-  std::cout << "\nEnded up with " << (*cur_strat).get_current_networth(last_date) << " on "
+  std::cout << "\nEnded up with " << cur_strat.get_current_networth(last_date) << " on "
             << boost::gregorian::to_simple_string(last_date) << std::endl;
   QApplication app(argc, argv);
 
   QChart *chart = new QChart();
-  chart->legend()->hide();
+  chart->legend()->setVisible(true);
   chart->addSeries(series);
   chart->addSeries(dax_series);
   chart->addSeries(sp_series);
+  chart->addSeries(inflation_series2);
+  chart->addSeries(inflation_series3);
   chart->createDefaultAxes();
   chart->setTitle("Portfolio performance over time");
 
@@ -118,10 +118,15 @@ int start(int argc, char **argv) {
   window.show();
 
   return app.exec();
-
 }
 
 
 int main(int argc, char **argv) {
-  return start(argc, argv);
+  long double investment_money = 1000;
+  RNGType rng;
+  boost::uniform_real<> zero_to_one(0, 1);
+  BuyAndHoldRandomStrategy r(investment_money, rng, zero_to_one);
+
+  std::cout << "Starting with " << investment_money << " money." << std::endl;
+  return test_trading_strategy(argc, argv, r, investment_money);
 }

@@ -36,11 +36,11 @@ private:
     }*/
 public:
   static StockData get_price_history(const std::string& stock_name) {
-    return Coordinator::stocks[stock_name];
+    return Coordinator::stocks.at(stock_name);
   }
 
   static boost::optional<StockDataPoint> get_price_at(const std::string& stock_name, boost::gregorian::date date) {
-    StockData sd = Coordinator::stocks[stock_name];
+    StockData sd = Coordinator::stocks.at(stock_name);
     for(StockDataPoint sdp : sd.get_price_history()) {
       if(sdp.get_date() == date) {
         return boost::optional<StockDataPoint>(sdp);
@@ -56,6 +56,7 @@ public:
   static void read_stock_data(const std::string& path_name) {
     for (auto& file_name : fs::directory_iterator(path_name)) {
       std::string file_name_string = file_name.path().string();
+      std::string stock_name = file_name.path().filename().string();
       // Öffne file <file_name>
       // Iteriere zeilenweise durch
       // Splitte zeilen nach , gib den Vector mit der Zeile an StockDataPoint Konstruktor, baue daraus StockData 
@@ -69,12 +70,12 @@ public:
         price_history.push_back(StockDataPoint(split_input));
       }
       cur_data.price_history = std::move(price_history);
-      Coordinator::stocks[file_name_string] = cur_data;
+      Coordinator::stocks[stock_name] = cur_data;
     }
   }
 
   static bool date_valid(const boost::gregorian::date& to_check) {
-    StockData random_stock = Coordinator::stocks["/home/jan/StockAnalyzer/resources/SnP500_historical_data.csv"];
+    StockData random_stock = Coordinator::stocks.at("SnP500_historical_data.csv");
     return random_stock.defined_for_date(to_check);
   }
 };
